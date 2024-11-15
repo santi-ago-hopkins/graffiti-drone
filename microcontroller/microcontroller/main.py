@@ -65,7 +65,8 @@ class Arduino(Node):
 
         print("Recieved Message")
         #Convert the steering value to what the motor has to rotate
-        motor_message = f"{str(msg.motor1) + " " + str(msg.motor2) + " " + str(msg.motor3) + " " + str(msg.motor4)}" + '\n'
+        #:motor_message = f"{str(msg.motor1) + " " + str(msg.motor2) + " " + str(msg.motor3) + " " + str(msg.motor4)}" + '\n'
+        motor_message = ""
         #self.ser.write(str(motor_str).encode('utf-8'))
         #self.ser.write(motor_str.encode())
         self.ser.write(bytearray(motor_message, 'ascii'))
