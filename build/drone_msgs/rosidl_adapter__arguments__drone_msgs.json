@@ -1,0 +1,6 @@
+{
+  "package_name": "drone_msgs",
+  "non_idl_tuples": [
+    "/home/daniel/Projects/graffiti-drone/drone_msgs:msg/MotorCommand.msg"
+  ]
+}

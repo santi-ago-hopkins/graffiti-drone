@@ -1,0 +1,17 @@
+[31mCMake Error at CMakeLists.txt:10 (find_package):
+  By not providing "Findrosidl_defualt_generators.cmake" in CMAKE_MODULE_PATH
+  this project has asked CMake to find a package configuration file provided
+  by "rosidl_defualt_generators", but CMake did not find one.
+
+  Could not find a package configuration file provided by
+  "rosidl_defualt_generators" with any of the following names:
+
+    rosidl_defualt_generatorsConfig.cmake
+    rosidl_defualt_generators-config.cmake
+
+  Add the installation prefix of "rosidl_defualt_generators" to
+  CMAKE_PREFIX_PATH or set "rosidl_defualt_generators_DIR" to a directory
+  containing one of the above files.  If "rosidl_defualt_generators" provides
+  a separate development package or SDK, be sure it has been installed.
+
+[0m

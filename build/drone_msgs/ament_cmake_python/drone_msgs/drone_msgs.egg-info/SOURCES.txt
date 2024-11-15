@@ -1,0 +1,6 @@
+setup.py
+drone_msgs/__init__.py
+drone_msgs.egg-info/PKG-INFO
+drone_msgs.egg-info/SOURCES.txt
+drone_msgs.egg-info/dependency_links.txt
+drone_msgs.egg-info/top_level.txt
