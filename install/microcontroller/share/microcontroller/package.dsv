@@ -1,6 +1,0 @@
-source;share/microcontroller/hook/pythonpath.ps1
-source;share/microcontroller/hook/pythonpath.dsv
-source;share/microcontroller/hook/pythonpath.sh
-source;share/microcontroller/hook/ament_prefix_path.ps1
-source;share/microcontroller/hook/ament_prefix_path.dsv
-source;share/microcontroller/hook/ament_prefix_path.sh
