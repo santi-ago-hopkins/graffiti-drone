@@ -7,14 +7,14 @@ from sensor_msgs.msg import Imu
 from std_msgs.msg import Float64
 from geometry_msgs.msg import TwistStamped
 from sensor_msgs.msg import Imu
-
+from drone_msgs.msg import MotorCommand, DistanceSensorArray
 
 class Arduino(Node):
     def __init__(self):
         super().__init__('arduino_connection_node')
 
         self.control_subscriber = self.create_subscription(
-            Float64,
+            MotorCommand,
             '/cmd',
             self.cmd_callback,
             1
@@ -26,11 +26,15 @@ class Arduino(Node):
             '/imu',
             1
         )
+        self.distance_publisher = self.create_publisher(
+            DistanceSensorArray, 
+            '/distance_sensors',
+            1
+        )
         
         # Initialize controls
         self.acceleration = 0
         self.steering_angle = 0 
-        self.is_serial_communication_active = True
         self.serial_port = '/dev/serial/by-id/usb-Arduino__www.arduino.cc__0043_6493433313535110B121-if00'  # Update this with serial port if changes
         self.baud_rate = 115200
         self.ser = ser = serial.Serial(self.serial_port, self.baud_rate)
@@ -46,25 +50,25 @@ class Arduino(Node):
         self.z_acceleration = 0.0
         
         # Create a timer that goes off every 0.001 seconds, and calls self.recieve_serial_values
-        # VERY ABITRARILY CREATED, SOMEBODY WRITE THIS BETTER
         self.serial_timer = self.create_timer(0.001, self.recieve_serial_values)
 
 
-    def cmd_callback(self, msg: AckermannDriveStamped):
+    def cmd_callback(self, msg: MotorCommand):
         """ 
         Callback function that should recieve car commands from MPC.
         Sends the acceleration and steering values to the arduino through Serial.
         """
-        steering_value = msg.drive.steering_angle
-        print("recieved message: ", steering_value)
+        motor1 = msg.motor1
+        motor2 = msg.motor2
+        motor3 = msg.motor3
+        motor4 = msg.motor4
+
+        print("Recieved Message")
         #Convert the steering value to what the motor has to rotate
-        motor_value = -1 * np.round(np.clip(steering_value * 4.615, (-2 *np.pi), (2 * np.pi)), 2)
-        motor_str = str(motor_value) + '\n'
-        motor_float = float(motor_str)
-        print("Motor Float: ", motor_float)
+        motor_message = f"{str(msg.motor1) + " " + str(msg.motor2) + " " + str(msg.motor3) + " " + str(msg.motor4)}" + '\n'
         #self.ser.write(str(motor_str).encode('utf-8'))
         #self.ser.write(motor_str.encode())
-        self.ser.write(bytearray(motor_str, 'ascii'))
+        self.ser.write(bytearray(motor_message, 'ascii'))
         print("sent message")
         return 
 

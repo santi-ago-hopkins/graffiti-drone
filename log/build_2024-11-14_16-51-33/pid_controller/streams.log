@@ -1,0 +1,20 @@
+[1.337s] Invoking command in '/home/daniel/Projects/graffiti-drone/pid_controller': PYTHONPATH=/home/daniel/Projects/graffiti-drone/build/pid_controller/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/daniel/Projects/graffiti-drone/install/pid_controller/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated setup.py egg_info --egg-base ../build/pid_controller build --build-base /home/daniel/Projects/graffiti-drone/build/pid_controller/build install --record /home/daniel/Projects/graffiti-drone/build/pid_controller/install.log --single-version-externally-managed install_data
+[1.547s] running egg_info
+[1.547s] writing ../build/pid_controller/pid_controller.egg-info/PKG-INFO
+[1.548s] writing dependency_links to ../build/pid_controller/pid_controller.egg-info/dependency_links.txt
+[1.548s] writing entry points to ../build/pid_controller/pid_controller.egg-info/entry_points.txt
+[1.548s] writing requirements to ../build/pid_controller/pid_controller.egg-info/requires.txt
+[1.548s] writing top-level names to ../build/pid_controller/pid_controller.egg-info/top_level.txt
+[1.549s] reading manifest file '../build/pid_controller/pid_controller.egg-info/SOURCES.txt'
+[1.550s] writing manifest file '../build/pid_controller/pid_controller.egg-info/SOURCES.txt'
+[1.550s] running build
+[1.550s] running build_py
+[1.550s] running install
+[1.550s] running install_lib
+[1.551s] running install_data
+[1.551s] running install_egg_info
+[1.552s] removing '/home/daniel/Projects/graffiti-drone/install/pid_controller/lib/python3.10/site-packages/pid_controller-0.0.0-py3.10.egg-info' (and everything under it)
+[1.553s] Copying ../build/pid_controller/pid_controller.egg-info to /home/daniel/Projects/graffiti-drone/install/pid_controller/lib/python3.10/site-packages/pid_controller-0.0.0-py3.10.egg-info
+[1.553s] running install_scripts
+[1.570s] writing list of installed files to '/home/daniel/Projects/graffiti-drone/build/pid_controller/install.log'
+[1.621s] Invoked command in '/home/daniel/Projects/graffiti-drone/pid_controller' returned '0': PYTHONPATH=/home/daniel/Projects/graffiti-drone/build/pid_controller/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/daniel/Projects/graffiti-drone/install/pid_controller/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated setup.py egg_info --egg-base ../build/pid_controller build --build-base /home/daniel/Projects/graffiti-drone/build/pid_controller/build install --record /home/daniel/Projects/graffiti-drone/build/pid_controller/install.log --single-version-externally-managed install_data

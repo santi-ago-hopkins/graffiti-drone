@@ -7,14 +7,14 @@ from sensor_msgs.msg import Imu
 from std_msgs.msg import Float64
 from geometry_msgs.msg import TwistStamped
 from sensor_msgs.msg import Imu
-
+from drone_msgs.msg import MotorCommand, DistanceSensorArray
 
 class Arduino(Node):
     def __init__(self):
         super().__init__('arduino_connection_node')
 
         self.control_subscriber = self.create_subscription(
-            Float64,
+            MotorCommand,
             '/cmd',
             self.cmd_callback,
             1
@@ -24,6 +24,11 @@ class Arduino(Node):
         self.imu_publisher = self.create_publisher(
             Imu,
             '/imu',
+            1
+        )
+        self.distance_publisher = self.create_publisher(
+            DistanceSensorArray, 
+            '/distance_sensors',
             1
         )
         
