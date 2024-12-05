@@ -22,12 +22,7 @@ class PIDController(Node):
             self.sensor_callback,
             1
         )
-        self.distance_sensor_subscriber = self.create_subscription(
-            DistanceSensorArray,
-            '/distance_sensors',
-            self.distance_callback,
-            1
-        )
+
         # Initial values for sensors
         self.init_roll = 0.0
         self.init_pitch = 0.0
@@ -46,27 +41,38 @@ class PIDController(Node):
         self.pitch = 0.0
         self.yaw = 0.0
         
-        self.goal_z = 10.0
+        self.goal_z = 0.5
         self.goal_yaw = 0.0
         self.goal_pitch = 0.0
         self.goal_roll = 0.0
 
-        # Previous values for derivative calculations
-        self.prev_time = self.get_clock().now()
+        self.hover_throttle = 1400.0
+
+        # Set previous time to use for derivative term
+        self.prev_time = Node.get_clock().now() * 10**6
         self.prev_z = None
 
         # Controller Parameters
-        self.z_kp = 10.0
-        self.z_kd = 10.0
-        self.yaw_kp = 10.0
-        self.yaw_kd = 10.0
-        self.roll_kp = 10.0
-        self.roll_kd = 10.0
-        self.pitch_kp = 10.0
-        self.pitch_kd = 10.0
+        # ------------------------------------------    
+        z_kp = 100.0
+        z_kd = 10.0
+
+        yaw_kp = 10.0
+        yaw_kd = 1.0
+
+        roll_kp = 10.0
+        roll_kd = 1.0
+
+        pitch_kp = 10.0
+        pitch_kd = 1.0
 
         self.current_z = 0.0
         # Mixer Matrix 
+        # ----------------------------------------------
+        # [1, -1,  1,  1  ]
+        # [1,  1, -1,  1  ]
+        # [1,  1,  1, -1  ]
+        # [1, -1, -1, -1  ]
         self.mixer_matrix = np.vstack(
             [[1, 1, 1, 1],
              [-1, 1, 1, -1],
@@ -79,22 +85,37 @@ class PIDController(Node):
     def sensor_callback(self, msg: SensorMessage):
         current_time = self.get_clock().now()
 
-        # # During initialization phase, collect sensor data
-        # if self.initializing:
-        #     if (current_time - self.init_start_time).nanoseconds < 5e9:  # First 5 seconds
-        #         np.append(self.init_samples, (msg.roll, msg.pitch, msg.yaw, msg.z))
-        #         return
-        #     else:
-        #         # Calculate averages and finalize initialization
-        #         samples = np.array(self.init_samples)
-        #         self.init_roll, self.init_pitch, self.init_yaw, self.init_z = np.mean(samples, axis=0)
-        #         self.get_logger().info(f"Initialization complete: Roll={self.init_roll}, Pitch={self.init_pitch}, Yaw={self.init_yaw}, Z={self.init_z}")
-        #         self.initializing = False
-        #         return
+        # During initialization phase, collect sensor data
+        if self.initializing:
+            if (current_time - self.init_start_time).nanoseconds < 5e9:  # First 5 seconds
+                self.init_samples.append((msg.roll, msg.pitch, msg.yaw, msg.z))
+                return
+            else:
+                # Calculate averages and finalize initialization
+                samples = np.array(self.init_samples)
+                self.init_roll, self.init_pitch, self.init_yaw, self.init_z = np.mean(samples, axis=0)
+                self.get_logger().info(f"Initialization complete: Roll={self.init_roll}, Pitch={self.init_pitch}, Yaw={self.init_yaw}, Z={self.init_z}")
+                self.initializing = False
+                return
 
-        # Main control logic after initialization
-        curr_time = current_time.nanoseconds * 1e-6  # milliseconds
-        dt = curr_time - self.prev_time.nanoseconds * 1e-6
+        # Get current time for derivative term
+        curr_time = Node.get_clock().now()
+        dt = (curr_time - self.prev_time).nanoseconds * 1e-6 # get delta time in milliseconds
+        # Get error terms of all the directions
+        z_error = self.goal_z - (msg.z - self.init_z)
+        if dt > 0:
+            z_dot = (self.z - self.prev_z) / dt
+            thrust = self.z_kp * z_error + self.roll_kd * z_dot
+        # x_error
+        # y_error
+        roll_error = self.goal_roll - (msg.roll - self.init_roll)
+        yaw_error = self.goal_yaw - (msg.yaw - self.init_yaw)
+        pitch_error = self.goal_pitch - (msg.pitch - self.init_pitch)
+        
+        # Calculate Inputs for each term
+        roll_input = self.roll_kp * roll_error + self.roll_kd * msg.roll_rate
+        yaw_input = self.yaw_kp * yaw_error + self.yaw_kd * msg.yaw_rate
+        pitch_input = self.pitch_kp * pitch_error + self.pitch_kd * msg.pitch_rate
         
         # Get error terms
         z_error = self.goal_z - self.current_z
@@ -111,17 +132,16 @@ class PIDController(Node):
         pitch_input = self.pitch_kp * pitch_error + self.pitch_kd * msg.pitch_rate
 
         # Create Vector with Inputs 
-        input_vector = np.array([thrust, roll_input, pitch_input, yaw_input]).T
+        input_vector = np.array([self.hover_throttle + thrust, roll_input, pitch_input, yaw_input]).T
         motor_input = self.mixer_matrix @ input_vector
 
         # Publish motor input
         control_message = MotorCommand()
-        control_message.motor1 = int(motor_input[0])
-        control_message.motor2 = int(motor_input[1])
-        control_message.motor3 = int(motor_input[2])
-        control_message.motor4 = int(motor_input[3])
+        control_message.motor1 = motor_input[0]
+        control_message.motor2 = motor_input[1]
+        control_message.motor3 = motor_input[2]
+        control_message.motor4 = motor_input[3]
 
-        self.controller_message_array = motor_input
         self.control_publisher.publish(control_message)
 
         # Visualizer Section # 
