@@ -36,7 +36,7 @@ class PIDController(Node):
         self.goal_yaw = 0.0
         self.goal_pitch = 0.0
         self.goal_roll = 0.0
-        
+
         # Set previous time to use for derivative term
         self.prev_time = Node.get_clock().now() * 10**6
         self.prev_z = None
@@ -66,7 +66,8 @@ class PIDController(Node):
             [-1, 1, 1, -1],
             [1, -1, 1, -1], 
             [1, 1, -1, -1]])  
-    
+
+
     def state_callback(self, msg: SensorMessage):
         # Get current time for derivative term
         curr_time = Node.get_clock().now()
