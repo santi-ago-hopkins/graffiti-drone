@@ -6,8 +6,8 @@ import serial
 from sensor_msgs.msg import Imu
 from std_msgs.msg import Float64
 from geometry_msgs.msg import TwistStamped
-from sensor_msgs.msg import Imu
-from drone_msgs.msg import MotorCommand, DistanceSensorArray
+from drone_msgs.msg import MotorCommand, DistanceSensorArray, SensorMessage
+import math
 
 class Arduino(Node):
     def __init__(self):
@@ -22,7 +22,7 @@ class Arduino(Node):
 
         # IMU Data Publisher
         self.imu_publisher = self.create_publisher(
-            Imu,
+            SensorMessage,
             '/imu',
             1
         )
@@ -35,9 +35,9 @@ class Arduino(Node):
         # Initialize controls
         self.acceleration = 0
         self.steering_angle = 0 
-        self.serial_port = '/dev/serial/by-id/usb-Arduino__www.arduino.cc__0043_6493433313535110B121-if00'  # Update this with serial port if changes
+        self.serial_port = '/dev/serial/by-id/usb-Arduino_LLC_Arduino_MKRZero_C4260BF85030574B412E3120FF13161F-if00'  # Update this with serial port if changes
         self.baud_rate = 115200
-        self.ser = ser = serial.Serial(self.serial_port, self.baud_rate)
+        self.ser = serial.Serial(self.serial_port, self.baud_rate)
 
         # IMU Publishing Bits and Bobs
         self.orientation_ready = False
@@ -49,6 +49,8 @@ class Arduino(Node):
         self.y_acceleration = 0.0
         self.z_acceleration = 0.0
         
+        self.imu_ready = False
+        self.distance_publisher_ready = False
         # Create a timer that goes off every 0.001 seconds, and calls self.recieve_serial_values
         self.serial_timer = self.create_timer(0.001, self.recieve_serial_values)
 
@@ -78,60 +80,56 @@ class Arduino(Node):
         if self.ser.in_waiting > 0: 
             data = self.ser.readline()
 
-            # Different possible messages we could recieve over serial
-            orientation_pattern = re.compile(r'X Orientation: ([\d.-]+) Y Orientation: ([\d.-]+) Z Orientation: ([\d.-]+)')
-            acceleration_pattern = re.compile(r'X Acceleration: ([\d.-]+) Y Acceleration: ([\d.-]+) Z Acceleration: ([\d.-]+)')
-            velocity_pattern = re.compile(r'Velocity: ([\d.-]+)')
 
-            # Check which match we have
+            # Regex for quaternions
+            quaternion_pattern = r"qW: ([\d\.\-]+) qX: ([\d\.\-]+) qY: ([\d\.\-]+) qZ: ([\d\.\-]+)"
+            # Regex for depth
+            depth_pattern = r"D=(\d+)mm"
 
-            # Case 1: Orientation Data
-            orientation_match = orientation_pattern.search(str(data))
-            if orientation_match:
-                self.x_orientation = float(orientation_match.group(1))
-                self.y_orientation = float(orientation_match.group(2))
-                self.z_orientation = float(orientation_match.group(3))
-                #print("X Orientation: ", self.x_orientation)
-                self.orientation_ready = True
-
-            # Case 2: Acceleration Data
-            acceleration_match = acceleration_pattern.search(str(data))
-            if acceleration_match:
-                self.x_acceleration = float(acceleration_match.group(1))
-                self.y_acceleration = float(acceleration_match.group(2))
-                self.z_acceleration = float(acceleration_match.group(3))
-                #print("X Accel: ", self.x_acceleration)
-                #print("Y Accel: ", self.y_acceleration)
-                #print("Z Accel: ", self.z_acceleration)
-                self.acceleration_ready = True
-
-            # Case 3: Velocity Data
-            velocity_match = velocity_pattern.search(str(data))
-            if velocity_match: 
-                msg = Float64()
-                if (float(velocity_match.group(1)) < 0 ):
-                    return
-                msg.data = float(velocity_match.group(1))
-                self.wheelspeed_publisher.publish(msg)
-                #self.get_logger().info(f"Published Wheelspeed data: {msg}")
+            # Extract quaternions
+            quaternion_match = re.search(quaternion_pattern, str(data))
+            if quaternion_match:
+                qW, qX, qY, qZ = map(float, quaternion_match.groups())
+                print(f"qW: {qW}, qX: {qX}, qY: {qY}, qZ: {qZ}")
+                roll, pitch, yaw = self.quat_to_euler((qW, qX, qY, qZ))
+                imu_message = SensorMessage()
+                imu_message.x = 0.0
+                imu_message.y = 0.0
+                imu_message.z = 0.0
+                imu_message.roll = roll
+                imu_message.pitch = pitch
+                imu_message.yaw = yaw 
+                imu_message.roll_rate = 0.0
+                imu_message.pitch_rate = 0.0
+                imu_message.yaw_rate = 0.0
+                self.imu_publisher.publish(imu_message)
+            else:
+                print("Quaternions not found.")
+            # Extract depth
+            depth_match = re.search(depth_pattern, str(data))
+            if depth_match:
+                depth = int(depth_match.group(1))  # Convert depth to integer
+                distance_message = DistanceSensorArray()
+                distance_message.x = 0.0
+                distance_message.y = 0.0
+                distance_message.z = depth / 1000
+                self.distance_publisher.publish(distance_message)
+                print(f"Depth: {depth} mm")
+            else:
+                print("Depth not found.")
                 
-            if self.orientation_ready is True and self.acceleration_ready is True: 
-                # Publish IMU message
-                imu_msg = Imu()
+    def quat_to_euler(self, quat):#: Quaternion) -> tuple[float, float, float]:
+        x = quat[1]
+        y = quat[2]
+        z = quat[3]
+        w = quat[0]
 
-                # Fill orientation (converting degrees to radians)
-                imu_msg.orientation.x = np.radians(self.x_orientation)
-                imu_msg.orientation.y = np.radians(self.y_orientation)
-                imu_msg.orientation.z = np.radians(self.z_orientation)
+        roll = math.atan2(2.0 * (w * x + y * z), 1.0 - 2.0 * (x * x + y * x))
+        pitch = math.asin(2.0 * (w * y - z * x))
+        yaw = math.atan2(2.0 * (w * z + x * y), 1.0 - 2.0 * (y * y + z * z))
 
-                # Fill linear acceleration
-                imu_msg.linear_acceleration.x = self.x_acceleration
-                imu_msg.linear_acceleration.y = self.y_acceleration
-                imu_msg.linear_acceleration.z = self.z_acceleration
-                imu_msg.header.stamp = self.get_clock().now().to_msg()
-                self.imu_publisher.publish(imu_msg)
-                #self.get_logger().info(f"Published IMU data: {imu_msg}")
-    
+        return roll, pitch, yaw
+ 
 def main(args=None):
     rclpy.init(args=args)
     arduino_node = Arduino()

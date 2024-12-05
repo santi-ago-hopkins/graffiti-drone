@@ -15,6 +15,8 @@ find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
 	"msg/MotorCommand.msg"
+  "msg/DistanceSensorArray.msg"
+  "msg/SensorMessage.msg"
 	DEPENDENCIES std_msgs
 	)
 if(BUILD_TESTING)
