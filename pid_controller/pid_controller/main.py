@@ -1,8 +1,6 @@
 import rclpy
 import numpy as np
 from rclpy.node import Node
-import rospy
-import serial
 from sensor_msgs.msg import Imu
 from std_msgs.msg import Float64
 from drone_msgs.msg import MotorCommand, SensorMessage
@@ -18,15 +16,13 @@ class PIDController(Node):
             1
         )
         
-        self.sensor_subscriber = self.create_subscriber(
+        self.sensor_subscriber = self.create_subscription(
             SensorMessage,
             '/sensors',
             self.sensor_callback,
             1
         )
 
-    
-        
         # Initial IMU values (set during initialization)
         self.initialized = False
         self.init_roll = 0.0
@@ -36,9 +32,25 @@ class PIDController(Node):
         self.init_y = 0.0
         self.init_z = 0.0
         
+        # Initial values for sensors
+        self.init_roll = 0.0
+        self.init_pitch = 0.0
+        self.init_yaw = 0.0
+        self.init_z = 0.0
 
-        # Desired Values
-        self.goal_z = 0.5 
+        self.initializing = True
+        self.init_samples = []
+        self.init_start_time = self.get_clock().now()
+
+        # Current states
+        self.x = 0.0
+        self.y = 0.0
+        self.z = 0.0
+        self.roll = 0.0
+        self.pitch = 0.0
+        self.yaw = 0.0
+        
+        self.goal_z = 0.5
         self.goal_yaw = 0.0
         self.goal_pitch = 0.0
         self.goal_roll = 0.0
@@ -71,10 +83,12 @@ class PIDController(Node):
         # [1, -1, -1, -1  ]
         self.mixer_matrix = np.vstack(
             [[1, 1, 1, 1],
-            [-1, 1, 1, -1],
-            [1, -1, 1, -1], 
-            [1, 1, -1, -1]])  
+             [-1, 1, 1, -1],
+             [1, -1, 1, -1], 
+             [1, 1, -1, -1]])
 
+    def sensor_callback(self, msg: SensorMessage):
+        current_time = self.get_clock().now()
 
     def state_callback(self, msg: SensorMessage):
         # Perform initialization if not yet done
@@ -106,6 +120,20 @@ class PIDController(Node):
         yaw_input = self.yaw_kp * yaw_error + self.yaw_kd * msg.yaw_rate
         pitch_input = self.pitch_kp * pitch_error + self.pitch_kd * msg.pitch_rate
         
+        # Get error terms
+        z_error = self.goal_z - msg.z 
+        z_dot = (self.z - self.prev_z) / dt if self.prev_z is not None and dt > 0 else 0.0
+        thrust = self.z_kp * z_error + self.z_kd * z_dot
+
+        roll_error = self.goal_roll - msg.roll
+        yaw_error = self.goal_yaw - msg.yaw
+        pitch_error = self.goal_pitch - msg.pitch
+
+        # Calculate Inputs
+        roll_input = self.roll_kp * roll_error + self.roll_kd * msg.roll_rate
+        yaw_input = self.yaw_kp * yaw_error + self.yaw_kd * msg.yaw_rate
+        pitch_input = self.pitch_kp * pitch_error + self.pitch_kd * msg.pitch_rate
+
         # Create Vector with Inputs 
         input_vector = np.array([self.hover_throttle + thrust, roll_input, pitch_input, yaw_input]).T
         motor_input = self.mixer_matrix @ input_vector
@@ -121,6 +149,7 @@ class PIDController(Node):
 
         self.control_publisher.publish(control_message)
 
+
 def main(args=None):
     rclpy.init(args=args)
     controller = PIDController()
@@ -129,4 +158,3 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
-
