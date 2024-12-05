@@ -5,6 +5,7 @@ from sensor_msgs.msg import Imu
 from std_msgs.msg import Float64
 from drone_msgs.msg import MotorCommand, SensorMessage, DistanceSensorArray
 import matplotlib.pyplot as plt 
+
 class PIDController(Node):
     def __init__(self):
         super().__init__('pid_controller_node')
@@ -23,15 +24,13 @@ class PIDController(Node):
             1
         )
 
-        # Initial values for sensors
+        self.initialized = False
         self.init_roll = 0.0
         self.init_pitch = 0.0
         self.init_yaw = 0.0
+        self.init_x = 0.0
+        self.init_y = 0.0
         self.init_z = 0.0
-
-        self.initializing = True
-        self.init_samples = np.array([])
-        self.init_start_time = self.get_clock().now()
 
         # Current states
         self.x = 0.0
@@ -49,22 +48,22 @@ class PIDController(Node):
         self.hover_throttle = 1400.0
 
         # Set previous time to use for derivative term
-        self.prev_time = Node.get_clock().now() * 10**6
+        self.prev_time = self.get_clock().now().nanoseconds * 10**6
         self.prev_z = None
 
         # Controller Parameters
         # ------------------------------------------    
-        z_kp = 100.0
-        z_kd = 10.0
+        self.z_kp = 100.0
+        self.z_kd = 10.0
 
-        yaw_kp = 10.0
-        yaw_kd = 1.0
+        self.yaw_kp = 10.0
+        self.yaw_kd = 1.0
 
-        roll_kp = 10.0
-        roll_kd = 1.0
+        self.roll_kp = 10.0
+        self.roll_kd = 1.0
 
-        pitch_kp = 10.0
-        pitch_kd = 1.0
+        self.pitch_kp = 10.0
+        self.pitch_kd = 1.0
 
         self.current_z = 0.0
         # Mixer Matrix 
@@ -85,22 +84,31 @@ class PIDController(Node):
     def sensor_callback(self, msg: SensorMessage):
         current_time = self.get_clock().now()
 
-        # During initialization phase, collect sensor data
-        if self.initializing:
-            if (current_time - self.init_start_time).nanoseconds < 5e9:  # First 5 seconds
-                self.init_samples.append((msg.roll, msg.pitch, msg.yaw, msg.z))
-                return
-            else:
-                # Calculate averages and finalize initialization
-                samples = np.array(self.init_samples)
-                self.init_roll, self.init_pitch, self.init_yaw, self.init_z = np.mean(samples, axis=0)
-                self.get_logger().info(f"Initialization complete: Roll={self.init_roll}, Pitch={self.init_pitch}, Yaw={self.init_yaw}, Z={self.init_z}")
-                self.initializing = False
-                return
+        # # During initialization phase, collect sensor data
+        # if self.initializing:
+        #     if (current_time - self.init_start_time).nanoseconds < 5e9:  # First 5 seconds
+        #         self.init_samples.append((msg.roll, msg.pitch, msg.yaw, msg.z))
+        #         return
+        #     else:
+        #         # Calculate averages and finalize initialization
+        #         samples = np.array(self.init_samples)
+        #         self.init_roll, self.init_pitch, self.init_yaw, self.init_z = np.mean(samples, axis=0)
+        #         self.get_logger().info(f"Initialization complete: Roll={self.init_roll}, Pitch={self.init_pitch}, Yaw={self.init_yaw}, Z={self.init_z}")
+        #         self.initializing = False
+        #         return
+
+        if not self.initialized:
+            self.init_roll = msg.roll
+            self.init_pitch = msg.pitch
+            self.init_yaw = msg.yaw
+            self.init_z = self.current_z
+            self.initialized = True
+            self.get_logger().info("IMU initialized with zero reference values.")
+            return
 
         # Get current time for derivative term
-        curr_time = Node.get_clock().now()
-        dt = (curr_time - self.prev_time).nanoseconds * 1e-6 # get delta time in milliseconds
+        curr_time = self.get_clock().now().nanoseconds
+        dt = (curr_time - self.prev_time) * 1e-6 # get delta time in milliseconds
         # Get error terms of all the directions
         z_error = self.goal_z - (msg.z - self.init_z)
         if dt > 0:
@@ -137,10 +145,10 @@ class PIDController(Node):
 
         # Publish motor input
         control_message = MotorCommand()
-        control_message.motor1 = motor_input[0]
-        control_message.motor2 = motor_input[1]
-        control_message.motor3 = motor_input[2]
-        control_message.motor4 = motor_input[3]
+        control_message.motor1 = int(motor_input[0])
+        control_message.motor2 = int(motor_input[1])
+        control_message.motor3 = int(motor_input[2])
+        control_message.motor4 = int(motor_input[3])
 
         self.control_publisher.publish(control_message)
 
