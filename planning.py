@@ -1,9 +1,23 @@
 from imageprocessing import Image
 import numpy as np
 import matplotlib.pyplot as plt
+import rclpy
+from rclpy.node import Node
+from geometry_msgs.msg import 
+from std_msgs.msg import Float32MultiArray
 
-class Planning:
+class Planning(Node):
     def __init__(self, waypoints):
+        #node stuff
+        super().__init__('planner_node')
+
+        # publishers:
+        self.control_publisher = self.create_publisher(
+            MotorCommand,
+            '/planner',
+            1
+
+
         self.speed = 1.0 
         self.speed_multiplier = 0.8
         self.path = None
@@ -18,7 +32,7 @@ class Planning:
             distances = np.linalg.norm(unvisited - np.array(current_point), axis=1)
             closest_index = np.argmin(distances)
             return unvisited[closest_index], closest_index
-
+    
         current_point = (0, 0)
         unvisited = np.array(self.waypoints)
         self.path = [current_point]
