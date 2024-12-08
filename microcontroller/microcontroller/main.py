@@ -39,18 +39,6 @@ class Arduino(Node):
         self.baud_rate = 115200
         self.ser = serial.Serial(self.serial_port, self.baud_rate)
 
-        # IMU Publishing Bits and Bobs
-        self.orientation_ready = False
-        self.acceleration_ready = False
-        self.x_orientation = 0.0
-        self.y_orientation = 0.0
-        self.z_orientation = 0.0
-        self.x_acceleration = 0.0
-        self.y_acceleration = 0.0
-        self.z_acceleration = 0.0
-        
-        self.imu_ready = False
-        self.distance_publisher_ready = False
         # Create a timer that goes off every 0.001 seconds, and calls self.recieve_serial_values
         self.serial_timer = self.create_timer(0.001, self.recieve_serial_values)
 
@@ -83,12 +71,14 @@ class Arduino(Node):
 
             # Regex for quaternions
             quaternion_pattern = r"qW: ([\d\.\-]+) qX: ([\d\.\-]+) qY: ([\d\.\-]+) qZ: ([\d\.\-]+)"
+            gyroscope_pattern = r"Roll Rate:\s*([-+]?\d*\.\d+|\d+)\s*Pitch Rate:\s*([-+]?\d*\.\d+|\d+)\s*Yaw Rate:\s*([-+]?\d*\.\d+|\d+)"
             # Regex for depth
             depth_pattern = r"D=(\d+)mm"
 
             # Extract quaternions
             quaternion_match = re.search(quaternion_pattern, str(data))
-            if quaternion_match:
+            gyroscope_match = re.search(gyroscope_pattern, str(data))
+            if quaternion_match and gyroscope_match:
                 qW, qX, qY, qZ = map(float, quaternion_match.groups())
                 print(f"qW: {qW}, qX: {qX}, qY: {qY}, qZ: {qZ}")
                 roll, pitch, yaw = self.quat_to_euler((qW, qX, qY, qZ))
@@ -99,12 +89,14 @@ class Arduino(Node):
                 imu_message.roll = roll
                 imu_message.pitch = pitch
                 imu_message.yaw = yaw 
-                imu_message.roll_rate = 0.0
-                imu_message.pitch_rate = 0.0
-                imu_message.yaw_rate = 0.0
+
+                roll_rate, pitch_rate, yaw_rate = map(float, gyroscope_match.groups())
+                imu_message.roll_rate = roll_rate * np.pi / 180
+                imu_message.pitch_rate = pitch_rate * np.pi / 180
+                imu_message.yaw_rate = yaw_rate * np.pi /180
                 self.imu_publisher.publish(imu_message)
             else:
-                print("Quaternions not found.")
+                print("Quat not found.")
             # Extract depth
             depth_match = re.search(depth_pattern, str(data))
             if depth_match:
@@ -117,6 +109,10 @@ class Arduino(Node):
                 print(f"Depth: {depth} mm")
             else:
                 print("Depth not found.")
+            if gyroscope_match: 
+                roll_rate = float(gyroscope_match.group(1))
+                pitch_rate = float(gyroscope_match.group(2))
+                yaw_rate = float(gyroscope_match.group(3))
                 
     def quat_to_euler(self, quat):#: Quaternion) -> tuple[float, float, float]:
         x = quat[1]
