@@ -3,6 +3,7 @@ import numpy as np
 from rclpy.node import Node
 from sensor_msgs.msg import Imu
 from std_msgs.msg import Float64
+from geometry_msgs import PoseArray
 from drone_msgs.msg import MotorCommand, SensorMessage, DistanceSensorArray
 import matplotlib.pyplot as plt 
 
@@ -24,6 +25,13 @@ class PIDController(Node):
             1
         )
 
+        self.planning_subscriber = self.create_subsciption(
+            PoseArray,
+            '/path',
+            self.path_callback,
+            1
+        )
+
         self.initialized = False
         self.init_roll = 0.0
         self.init_pitch = 0.0
@@ -41,6 +49,7 @@ class PIDController(Node):
         self.yaw = 0.0
         
         self.goal_z = 0.5
+        self.goal_y = 0.0
         self.goal_yaw = 0.0
         self.goal_pitch = 0.0
         self.goal_roll = 0.0
@@ -81,8 +90,8 @@ class PIDController(Node):
 
         #self.visualize_drone_forces_realtime()
         self.controller_message_array = np.array([0, 0, 0, 0])
+    
     def sensor_callback(self, msg: SensorMessage):
-        current_time = self.get_clock().now()
 
         # # During initialization phase, collect sensor data
         # if self.initializing:
@@ -109,21 +118,6 @@ class PIDController(Node):
         # Get current time for derivative term
         curr_time = self.get_clock().now().nanoseconds
         dt = (curr_time - self.prev_time) * 1e-6 # get delta time in milliseconds
-        # Get error terms of all the directions
-        z_error = self.goal_z - (msg.z - self.init_z)
-        if dt > 0:
-            z_dot = (self.z - self.prev_z) / dt
-            thrust = self.z_kp * z_error + self.roll_kd * z_dot
-        # x_error
-        # y_error
-        roll_error = self.goal_roll - (msg.roll - self.init_roll)
-        yaw_error = self.goal_yaw - (msg.yaw - self.init_yaw)
-        pitch_error = self.goal_pitch - (msg.pitch - self.init_pitch)
-        
-        # Calculate Inputs for each term
-        roll_input = self.roll_kp * roll_error + self.roll_kd * msg.roll_rate
-        yaw_input = self.yaw_kp * yaw_error + self.yaw_kd * msg.yaw_rate
-        pitch_input = self.pitch_kp * pitch_error + self.pitch_kd * msg.pitch_rate
         
         # Get error terms
         z_error = self.goal_z - self.current_z
@@ -157,6 +151,16 @@ class PIDController(Node):
 
     def distance_callback(self, msg):
         self.current_z = msg.z
+
+    def path_callback(self, msg: PoseArray):
+        coordinate_transform = np.vstack([0, 0, 1],
+                                         [1, 0, 0],
+                                         [0, 1, 0])
+        msg_vector = [msg.poses.x, msg.poses.y, msg.poses.z] 
+        goal_vector = coordinate_transform@msg_vector
+        self.goal_z = goal_vector[2]
+        self.goal_y = goal_vector[1]
+
     # def visualize_drone_forces_realtime(self):
     #     """
     #     Visualize the forces acting on a drone's four motors in real time.
