@@ -31,10 +31,10 @@ Servo esc3;
 Servo esc4;
 
 // Define pin numbers for the ESCs
-const int esc1Pin = 5;
-const int esc2Pin = 4;
-const int esc3Pin = 3;
-const int esc4Pin = 2;
+const int esc1Pin = 2;
+const int esc2Pin = 3;
+const int esc3Pin = 5;
+const int esc4Pin = 4;
 /* Setup ---------------------------------------------------------------------*/
 
 void setup()
@@ -45,7 +45,35 @@ void setup()
   // Initialize serial for output.
   SerialPort.begin(115200);
   SerialPort.println("Starting...");
-
+  
+  esc1.attach(esc1Pin, 1000, 2000);
+  esc2.attach(esc2Pin, 1000, 2000);
+  esc3.attach(esc3Pin, 1000, 2000);
+  esc4.attach(esc4Pin, 1000, 2000);
+  esc1.writeMicroseconds(2000);
+  esc2.writeMicroseconds(2000);
+  esc3.writeMicroseconds(2000);
+  esc4.writeMicroseconds(2000);
+  delay(10000);
+  Serial.println("WRITING 1000");
+  esc1.writeMicroseconds(1000);
+  esc2.writeMicroseconds(1000);
+  esc3.writeMicroseconds(1000);
+  esc4.writeMicroseconds(1000);  
+  delay(7000);
+  Serial.println("WRITING 2000");
+  esc1.writeMicroseconds(2000);
+  esc2.writeMicroseconds(2000);
+  esc3.writeMicroseconds(2000);
+  esc4.writeMicroseconds(2000);
+  delay(10000);
+  Serial.println("Writing 1000");
+  esc1.writeMicroseconds(1000);
+  esc2.writeMicroseconds(1000);
+  esc3.writeMicroseconds(1000);
+  esc4.writeMicroseconds(1000);
+  delay(5);
+  
   // Initialize I2C bus.
   DEV_I2C.begin();
 
@@ -73,10 +101,7 @@ void setup()
     
   bno.setExtCrystalUse(true);
 
-  esc1.attach(esc1Pin);
-  esc2.attach(esc2Pin);
-  esc3.attach(esc3Pin);
-  esc4.attach(esc4Pin);
+
 }
 
 void loop()
