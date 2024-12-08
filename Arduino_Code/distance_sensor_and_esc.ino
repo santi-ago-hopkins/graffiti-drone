@@ -1,9 +1,3 @@
-/**
- ******************************************************************************
- * @file    VL53L4CX_Sat_HelloWorld.ino
- * ...
- */
-
 #include <Arduino.h>
 #include <Wire.h>
 #include <vl53l4cx_class.h>
@@ -13,7 +7,10 @@
 #include <stdint.h>
 #include <assert.h>
 #include <stdlib.h>
-#include <Servo.h> // Added for ESC control.
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BNO055.h>
+#include <utility/imumaths.h>
+#include <Servo.h>
 
 #define DEV_I2C Wire
 #define SerialPort Serial
@@ -25,16 +22,27 @@
 
 // Components.
 VL53L4CX sensor_vl53l4cx_sat(&DEV_I2C, A1);
+Adafruit_BNO055 bno = Adafruit_BNO055(55);
 
-Servo esc1;  // Create a Servo object to control the ESC.
-Servo esc2;  // Create a Servo object to control the ESC.
-Servo esc3;  // Create a Servo object to control the ESC.
-Servo esc4;  // Create a Servo object to control the ESC.
+// Create Servo objects for the ESCs
+Servo esc1;
+Servo esc2;
+Servo esc3;
+Servo esc4;
+
+// Define pin numbers for the ESCs
+const int esc1Pin = 5;
+const int esc2Pin = 4;
+const int esc3Pin = 3;
+const int esc4Pin = 2;
+/* Setup ---------------------------------------------------------------------*/
 
 void setup()
 {
   // Led.
   pinMode(LedPin, OUTPUT);
+
+  // Initialize serial for output.
   SerialPort.begin(115200);
   SerialPort.println("Starting...");
 
@@ -47,27 +55,33 @@ void setup()
   // Switch off VL53L4CX satellite component.
   sensor_vl53l4cx_sat.VL53L4CX_Off();
 
-  // Initialize VL53L4CX satellite component.
+  //Initialize VL53L4CX satellite component.
   sensor_vl53l4cx_sat.InitSensor(0x12);
 
-  // Start Measurements.
+  // Start Measurements
   sensor_vl53l4cx_sat.VL53L4CX_StartMeasurement();
 
-  // Initialize ESC on digital pin 5.
-  esc1.attach(5);
-  esc2.attach(1);
-  esc3.attach(3);
-  esc4.attach(2);
-  esc1.writeMicroseconds(2000); // Minimum signal to arm the ESC (adjust if needed).
-  esc2.writeMicroseconds(2000); // Minimum signal to arm the ESC (adjust if needed).
-  esc3.writeMicroseconds(2000); // Minimum signal to arm the ESC (adjust if needed).
-  esc4.writeMicroseconds(2000); // Minimum signal to arm the ESC (adjust if needed).
+    /* Initialise the sensor */
+  if(!bno.begin())
+  {
+    /* There was a problem detecting the BNO055 ... check your connections */
+    Serial.print("Ooops, no BNO055 detected ... Check your wiring or I2C ADDR!");
+    while(1);
+  }
+  
+  delay(1000);
+    
+  bno.setExtCrystalUse(true);
 
-  SerialPort.println("ESC initialized. Enter a value (0-180) to control the ESC.");
+  esc1.attach(esc1Pin);
+  esc2.attach(esc2Pin);
+  esc3.attach(esc3Pin);
+  esc4.attach(esc4Pin);
 }
 
 void loop()
 {
+  // Serial.println("");
   VL53L4CX_MultiRangingData_t MultiRangingData;
   VL53L4CX_MultiRangingData_t *pMultiRangingData = &MultiRangingData;
   uint8_t NewDataReady = 0;
@@ -79,57 +93,87 @@ void loop()
     status = sensor_vl53l4cx_sat.VL53L4CX_GetMeasurementDataReady(&NewDataReady);
   } while (!NewDataReady);
 
-  // Led on.
+  //Led on
   digitalWrite(LedPin, HIGH);
 
   if ((!status) && (NewDataReady != 0)) {
     status = sensor_vl53l4cx_sat.VL53L4CX_GetMultiRangingData(pMultiRangingData);
     no_of_object_found = pMultiRangingData->NumberOfObjectsFound;
     snprintf(report, sizeof(report), "VL53L4CX Satellite: Count=%d, #Objs=%1d ", pMultiRangingData->StreamCount, no_of_object_found);
-    SerialPort.print(report);
+    // SerialPort.print(report);
     for (j = 0; j < no_of_object_found; j++) {
       if (j != 0) {
-        SerialPort.print("\r\n                               ");
+        // SerialPort.print("\r\n                               ");
       }
-      SerialPort.print("status=");
-      SerialPort.print(pMultiRangingData->RangeData[j].RangeStatus);
-      SerialPort.print(", D=");
-      SerialPort.print(pMultiRangingData->RangeData[j].RangeMilliMeter);
-      SerialPort.print("mm");
-      SerialPort.print(", Signal=");
-      SerialPort.print((float)pMultiRangingData->RangeData[j].SignalRateRtnMegaCps / 65536.0);
-      SerialPort.print(" Mcps, Ambient=");
-      SerialPort.print((float)pMultiRangingData->RangeData[j].AmbientRateRtnMegaCps / 65536.0);
-      SerialPort.print(" Mcps");
+      // SerialPort.print(", D=");
+      // SerialPort.print(pMultiRangingData->RangeData[j].RangeMilliMeter);
+      // SerialPort.print("mm");
     }
-    SerialPort.println("");
+    //SerialPort.println("");
     if (status == 0) {
       status = sensor_vl53l4cx_sat.VL53L4CX_ClearInterruptAndStartMeasurement();
     }
   }
+  imu::Quaternion quat = bno.getQuat();
+  imu::Vector<3> gyroscope = bno.getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);
 
-  digitalWrite(LedPin, LOW);
-
-  // ESC Control.
+  // read serial data and put into motor commands
   if (SerialPort.available()) {
     String input = SerialPort.readStringUntil('\n');  // Read serial input.
-    int value = input.toInt();  // Convert to integer.
 
-    // Constrain the value to be between 0 and 180.
-    value = constrain(value, 0, 180);
+    //split up serial message into 4 commands
+    String splits[4]; //empty array for split up string commands
+    int commands[4]; //make an empty array of size 4 all set to zeros
 
-    // Map the input to a PWM range (1000-2000 microseconds).
-    int pwmSignal = map(value, 0, 180, 1000, 2000);
+    split(input, '/', splits, 4);
 
-    // Send the PWM signal to the ESC.
-    esc1.writeMicroseconds(pwmSignal);
-    esc2.writeMicroseconds(pwmSignal);
-    esc3.writeMicroseconds(pwmSignal);
-    esc4.writeMicroseconds(pwmSignal);
+    for (int i = 0; i < 4; i++) {
+        int value = splits[i].toInt();  // convert to integer 
+        value = constrain(value, 0, 180); //constrain integer
+        value = map(value, 0, 180, 1000, 1600); //map integer
+        commands[i] = value;
+    }
+
+    esc1.writeMicroseconds(int(commands[0]));
+    esc2.writeMicroseconds(int(commands[1]));
+    esc3.writeMicroseconds(int(commands[2]));
+    esc4.writeMicroseconds(int(commands[3]));
 
     // Provide feedback.
     SerialPort.print("ESC set to: ");
-    SerialPort.println(value);
+    SerialPort.println(commands[0]);
+    SerialPort.println(commands[1]);
+    SerialPort.println(commands[2]);
+    SerialPort.println(commands[3]);
+
+  
   }
+
+  // /* Display the quat data */
+  // Serial.print(" qW: ");
+  // Serial.print(quat.w(), 4);
+  // Serial.print(" qX: ");
+  // Serial.print(quat.x(), 4);
+  // Serial.print(" qY: ");
+  // Serial.print(quat.y(), 4);
+  // Serial.print(" qZ: ");
+  // Serial.print(quat.z(), 4);
+
+  // Serial.print(" Roll Rate: ");
+  // Serial.print(gyroscope.x());
+  // Serial.print(" Pitch Rate: ");
+  // Serial.print(gyroscope.y());
+  // Serial.print(" Yaw Rate: ");
+  // Serial.print(gyroscope.z());
+  digitalWrite(LedPin, LOW);
 }
 
+void split(String input, char delimiter, String output[], int numParts) { 
+  int startIndex = 0; 
+  int delimiterIndex; 
+  numParts = 0; 
+  while ((delimiterIndex = input.indexOf(delimiter, startIndex)) != -1) { 
+    output[numParts++] = input.substring(startIndex, delimiterIndex); 
+    startIndex = delimiterIndex + 1; 
+  }
+}// Add the last partif (startIndex < input.length()) { output[numParts++] = input.substring(startIndex); } }
