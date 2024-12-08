@@ -35,7 +35,7 @@ class Arduino(Node):
         # Initialize controls
         self.acceleration = 0
         self.steering_angle = 0 
-        self.serial_port = '/dev/serial/by-id/usb-Arduino_LLC_Arduino_MKRZero_C4260BF85030574B412E3120FF13161F-if00'  # Update this with serial port if changes
+        self.serial_port = '/dev/serial/by-id/usb-Arduino_LLC_Arduino_MKRZero_C4260BF85030574B412E3120FF13161F-if00'
         self.baud_rate = 115200
         self.ser = serial.Serial(self.serial_port, self.baud_rate)
 
@@ -55,8 +55,8 @@ class Arduino(Node):
 
         print("Recieved Message")
         #Convert the steering value to what the motor has to rotate
-        #:motor_message = f"{str(msg.motor1) + " " + str(msg.motor2) + " " + str(msg.motor3) + " " + str(msg.motor4)}" + '\n'
-        motor_message = ""
+        motor_message = f"{str(msg.motor1) + "/" + str(msg.motor2) + "/" + str(msg.motor3) + "/" + str(msg.motor4) + "/"}" + '\n'
+        print("MOTOR MESSAGE")
         #self.ser.write(str(motor_str).encode('utf-8'))
         #self.ser.write(motor_str.encode())
         self.ser.write(bytearray(motor_message, 'ascii'))
