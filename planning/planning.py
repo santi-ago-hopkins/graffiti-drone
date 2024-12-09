@@ -14,7 +14,7 @@ class Planning(Node):
         # publish to /planner topic
         self.control_publisher = self.create_publisher(
             PoseArray,
-            '/planner',
+            '/path',
             1)
 
         self.speed = 1.0 
