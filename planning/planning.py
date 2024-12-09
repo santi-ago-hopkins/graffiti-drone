@@ -1,9 +1,10 @@
 from imageprocessing import Image
 import numpy as np
 import matplotlib.pyplot as plt
-import rclpy
-from rclpy.node import Node
+import rclpy #uncomment me before flashing
+from rclpy.node import Node # uncomment  me
 from geometry_msgs.msg import PoseArray, Point, Pose
+import math 
 
 class Planning(Node):
     def __init__(self, waypoints):
@@ -16,29 +17,14 @@ class Planning(Node):
             '/path',
             1)
 
-
         self.speed = 1.0 
         self.speed_multiplier = 0.8
         self.path = None
         self.waypoints = waypoints
-
-    #convert np array to poses to publish
-    def numpyToPoseArrayPublish(self):
-        poses = PoseArray()
-        poses.header.frame_id = "global_path" 
-        poses.header.stamp = rclpy.Time.now()
         
-        for point in self.path:
-            pose = Pose()
-            pose.position = Point(x=float(point[0]), y=float(point[1]), z=0)
-            poses.poses.append(pose)
+        self.resolution = 0.25 # one point every 25 cm (0.25 m)
 
-        #publish to planner topic
-        self.control_publisher.publish(poses)        
-
-
-
-    #very unoptimized
+    #simple nearest neighbors algorithm
     def nearestNeighborPath(self):
         def distance(point1, point2):
             return np.linalg.norm(np.array(point1) - np.array(point2))
@@ -70,6 +56,50 @@ class Planning(Node):
         allows us to slow the drone down closer to the POI'''
         pass
 
+
+    # should return a self.path with added waypoints
+    def interpolatePoints(self):    
+        def calculate_distance(point1, point2):
+            # Assuming points are in (x, y) format
+            x1, y1 = point1
+            x2, y2 = point2
+            return math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
+
+        #iterate through self.path
+        new_path = []
+        for i, point in enumerate(self.path):
+            if i < len(self.path) - 1:
+                current_point = point
+                next_point = self.path[i + 1]
+                dist = calculate_distance(self, current_point, next_point)
+
+                if dist > self.resolution:
+                    num_points_to_add = np.floor(dist/self.resolution)
+                    step = (next_point - current_point) / (num_points_to_add + 1)
+
+                    for j in range(1, num_points_to_add + 1):
+                        interpolated_point = current_point + j * step
+                        new_path.append(interpolated_point)
+
+        new_path.append(self.path[-1])
+        self.path = new_path
+
+        return self.path
+
+    #convert np array to poses to publish
+    def numpyToPoseArrayPublish(self):
+        poses = PoseArray()
+        poses.header.frame_id = "global_path" 
+        poses.header.stamp = rclpy.Time.now()
+        
+        for point in self.path:
+            pose = Pose()
+            pose.position = Point(x=float(point[0]), y=float(point[1]), z=0)
+            poses.poses.append(pose)
+
+        #publish to planner topic
+        self.control_publisher.publish(poses)        
+
     def plot(self): 
         # separate x and y coords
         x, y = zip(*self.path)
@@ -99,8 +129,7 @@ if __name__ == "__main__":
     #planning stuff
     nn_planner = Planning(waypoints)
     nn_planner.nearestNeighborPath()
-    nn_planner.plot()
+    nn_planner.plot() # plot me! 
 
     # publish 
-
     nn_planner.numpyToPoseArrayPublish()
