@@ -68,6 +68,9 @@ class Arduino(Node):
         if self.ser.in_waiting > 0: 
             data = self.ser.readline()
 
+            if data == "Initialize finished":
+                self.arduino_initialized = True
+                self.get_logger().info("Arduino initialization complete. Starting motor commands.")
 
             # Regex for quaternions
             quaternion_pattern = r"qW: ([\d\.\-]+) qX: ([\d\.\-]+) qY: ([\d\.\-]+) qZ: ([\d\.\-]+)"
