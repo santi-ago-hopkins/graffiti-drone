@@ -6,6 +6,7 @@ from std_msgs.msg import Float64
 from geometry_msgs import PoseArray
 from drone_msgs.msg import MotorCommand, SensorMessage, DistanceSensorArray
 import matplotlib.pyplot as plt 
+import math
 
 class PIDController(Node):
     def __init__(self):
@@ -114,6 +115,11 @@ class PIDController(Node):
             self.initialized = True
             self.get_logger().info("IMU initialized with zero reference values.")
             return
+        
+        #get yaw, roll, pitch
+        self.yaw = msg.yaw
+        self.roll = msg.roll
+        self.pitch = msg.pitch
 
         # Get current time for derivative term
         curr_time = self.get_clock().now().nanoseconds
@@ -149,8 +155,38 @@ class PIDController(Node):
         # Visualizer Section # 
         #######################
 
+    #give us rotation matrix, given yaw pitch roll, where theta is 1x3 array
+    def eulerAnglesToRotationMatrix(theta) :
+    
+        R_x = np.array([[1,         0,                  0                   ],
+                        [0,         math.cos(theta[0]), -math.sin(theta[0]) ],
+                        [0,         math.sin(theta[0]), math.cos(theta[0])  ]
+                        ])
+    
+        R_y = np.array([[math.cos(theta[1]),    0,      math.sin(theta[1])  ],
+                        [0,                     1,      0                   ],
+                        [-math.sin(theta[1]),   0,      math.cos(theta[1])  ]
+                        ])
+    
+        R_z = np.array([[math.cos(theta[2]),    -math.sin(theta[2]),    0],
+                        [math.sin(theta[2]),    math.cos(theta[2]),     0],
+                        [0,                     0,                      1]
+                        ])
+    
+        R = np.dot(R_z, np.dot( R_y, R_x ))
+    
+        return R
+
     def distance_callback(self, msg):
-        self.current_z = msg.z
+        #set thetas
+        thetas = [self.roll, self.pitch, self.yaw]
+
+        #get rotation matrix
+        R = eulerAnglesToRotationMatrix(thetas)
+
+        #find z_dist 
+        dist_vec = np.dot(R, [0, 0, msg.z])
+        self.current_z = dist_vec[2]
 
     def path_callback(self, msg: PoseArray):
         coordinate_transform = np.vstack([0, 0, 1],
