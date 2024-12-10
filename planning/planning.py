@@ -14,7 +14,7 @@ class Planning(Node):
         # publish to /planner topic
         self.control_publisher = self.create_publisher(
             PoseArray,
-            '/planner',
+            '/path',
             1)
 
         self.speed = 1.0 
@@ -50,7 +50,7 @@ class Planning(Node):
         return self.path
 
     
-    #may make sense to implement something like this later that allows us to slow the speed near the point
+    # may make sense to implement something like this later that allows us to slow the speed near the point
     def set_velocities(self):
         '''using self.multipler (determines how slow we go near the point), we want to return a list with velocities as a function of position
         allows us to slow the drone down closer to the POI'''
