@@ -3,9 +3,8 @@ import numpy as np
 from rclpy.node import Node
 from sensor_msgs.msg import Imu
 from std_msgs.msg import Float64
-from geometry_msgs import PoseArray
+from geometry_msgs.msg import PoseArray
 from drone_msgs.msg import MotorCommand, SensorMessage, DistanceSensorArray
-import matplotlib.pyplot as plt 
 
 class PIDController(Node):
     def __init__(self):
@@ -25,7 +24,7 @@ class PIDController(Node):
             1
         )
 
-        self.planning_subscriber = self.create_subsciption(
+        self.planning_subscriber = self.create_subscription(
             PoseArray,
             '/path',
             self.path_callback,
@@ -82,10 +81,10 @@ class PIDController(Node):
         # [1,  1,  1, -1  ]
         # [1, -1, -1, -1  ]
         self.mixer_matrix = np.vstack(
-            [[1, 1, 1, 1],
-             [-1, 1, 1, -1],
-             [1, -1, 1, -1], 
-             [1, 1, -1, -1]])
+            [[1, -1, 1, 1],
+             [1, 1, -1, 1],
+             [1, 1, 1, -1], 
+             [1, -1, -1, -1]])
 
 
         #self.visualize_drone_forces_realtime()
@@ -113,6 +112,7 @@ class PIDController(Node):
             self.init_z = self.current_z
             self.initialized = True
             self.get_logger().info("IMU initialized with zero reference values.")
+            print("initialized")
             return
 
         # Get current time for derivative term
@@ -127,23 +127,32 @@ class PIDController(Node):
         roll_error = self.goal_roll - msg.roll
         yaw_error = self.goal_yaw - msg.yaw
         pitch_error = self.goal_pitch - msg.pitch
-
+        
+        print("ERRORS: ")
+        print("Roll: ", roll_error)
+        print("PITCH: ", pitch_error)
+        print("Yaw: ", yaw_error)
         # Calculate Inputs
         roll_input = self.roll_kp * roll_error + self.roll_kd * msg.roll_rate
-        yaw_input = self.yaw_kp * yaw_error + self.yaw_kd * msg.yaw_rate
+        yaw_input = 0#self.yaw_kp * yaw_error + self.yaw_kd * msg.yaw_rate
         pitch_input = self.pitch_kp * pitch_error + self.pitch_kd * msg.pitch_rate
 
+        print("INPUTS: ")
+        print("ROLL INPUT: ", roll_input)
+        print("PITCH INPUT: ", pitch_input)
         # Create Vector with Inputs 
         input_vector = np.array([self.hover_throttle + thrust, roll_input, pitch_input, yaw_input]).T
         motor_input = self.mixer_matrix @ input_vector
-
+        
         # Publish motor input
         control_message = MotorCommand()
         control_message.motor1 = int(motor_input[0])
         control_message.motor2 = int(motor_input[1])
         control_message.motor3 = int(motor_input[2])
         control_message.motor4 = int(motor_input[3])
-
+        
+        print("Motor Inputs: ",)
+        print(motor_input)
         self.control_publisher.publish(control_message)
 
         # Visualizer Section # 
