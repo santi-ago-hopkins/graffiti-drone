@@ -154,7 +154,9 @@ class PIDController(Node):
 
 
     def linear_map(self, value, original_min, original_max, new_min, new_max):
+        """Linear Mapping Helper Function"""
         return new_min + (new_max - new_min) * ((value - original_min) / (original_max - original_min))
+
 def main(args=None):
     rclpy.init(args=args)
     controller = PIDController()
