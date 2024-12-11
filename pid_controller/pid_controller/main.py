@@ -66,6 +66,10 @@ class PIDController(Node):
              [1, 1, 1, -1],
              [1, -1, -1, -1]])
         self.controller_message_array = np.array([0, 0, 0, 0])
+
+
+        self.min_esc_value = 0
+        self.max_esc_value = 0
     def sensor_callback(self, msg: SensorMessage):
         if not self.initialized:
             self.init_roll = msg.roll
@@ -126,18 +130,35 @@ class PIDController(Node):
         goal_vector = coordinate_transform@msg_vector
         self.goal_z = goal_vector[2]
         self.goal_y = goal_vector[1]
-    def update_kp_live(self):
-        while True:
-            try:
-                new_kp = int(input("Enter new kp value: "))
-                self.roll_kp = new_kp
-                self.pitch_kp = new_kp
-                self.get_logger().info(f"Updated kp to {self.roll_kp}")
-            except ValueError:
-                self.get_logger().error("Invalid input. Please enter a numeric value.")
+
+    def adjust_range(self): 
+        original_min = 0
+        original_max = 200
+
+        # Fix all of Roll Values 
+        self.roll_kp = self.linear_map(self.roll_kp, original_min, original_max, self.min_esc_value, self.max_esc_value)
+        self.roll_kd = self.linear_map(self.roll_kd, original_min, original_max, self.min_esc_value, self.max_esc_value)
+        self.roll_ki = self.linear_map(self.roll_ki, original_min, original_max, self.min_esc_value, self.max_esc_value)
+
+        self.pitch_kp = self.linear_map(self.pitch_kp, original_min, original_max, self.min_esc_value, self.max_esc_value)
+        self.pitch_kd = self.linear_map(self.pitch_kd, original_min, original_max, self.min_esc_value, self.max_esc_value)
+        self.pitch_ki = self.linear_map(self.pitch_ki, original_min, original_max, self.min_esc_value, self.max_esc_value)
+
+        self.yaw_kp = self.linear_map(self.yaw_kp, original_min, original_max, self.min_esc_value, self.max_esc_value)
+        self.yaw_kd = self.linear_map(self.yaw_kd, original_min, original_max, self.min_esc_value, self.max_esc_value)
+        self.yaw_ki = self.linear_map(self.yaw_ki, original_min, original_max, self.min_esc_value, self.max_esc_value)
+
+        self.z_kp = self.linear_map(self.z_kp, original_min, original_max, self.min_esc_value, self.max_esc_value)
+        self.z_kd = self.linear_map(self.z_kd, original_min, original_max, self.min_esc_value, self.max_esc_value)
+        self.z_ki = self.linear_map(self.z_ki, original_min, original_max, self.min_esc_value, self.max_esc_value)
+
+
+    def linear_map(self, value, original_min, original_max, new_min, new_max):
+        return new_min + (new_max - new_min) * ((value - original_min) / (original_max - original_min))
 def main(args=None):
     rclpy.init(args=args)
     controller = PIDController()
+    controller.adjust_range()
     rclpy.spin(controller)
     rclpy.shutdown()
 if __name__ == '__main__':
