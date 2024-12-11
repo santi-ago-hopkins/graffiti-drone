@@ -5,6 +5,7 @@ from sensor_msgs.msg import Imu
 from std_msgs.msg import Float64
 from geometry_msgs.msg import PoseArray
 from drone_msgs.msg import MotorCommand, SensorMessage, DistanceSensorArray
+import math
 
 class PIDController(Node):
     def __init__(self):
@@ -164,27 +165,6 @@ class PIDController(Node):
         #######################
 
     #give us rotation matrix, given yaw pitch roll, where theta is 1x3 array
-    def eulerAnglesToRotationMatrix(theta) :
-    
-        R_x = np.array([[1,         0,                  0                   ],
-                        [0,         math.cos(theta[0]), -math.sin(theta[0]) ],
-                        [0,         math.sin(theta[0]), math.cos(theta[0])  ]
-                        ])
-    
-        R_y = np.array([[math.cos(theta[1]),    0,      math.sin(theta[1])  ],
-                        [0,                     1,      0                   ],
-                        [-math.sin(theta[1]),   0,      math.cos(theta[1])  ]
-                        ])
-    
-        R_z = np.array([[math.cos(theta[2]),    -math.sin(theta[2]),    0],
-                        [math.sin(theta[2]),    math.cos(theta[2]),     0],
-                        [0,                     0,                      1]
-                        ])
-    
-        R = np.dot(R_z, np.dot( R_y, R_x ))
-    
-        return R
-
     def distance_callback(self, msg):
         #set thetas
         thetas = [self.roll, self.pitch, self.yaw]
@@ -204,6 +184,27 @@ class PIDController(Node):
         goal_vector = coordinate_transform@msg_vector
         self.goal_z = goal_vector[2]
         self.goal_y = goal_vector[1]
+
+def eulerAnglesToRotationMatrix(theta):
+    
+        R_x = np.array([[1,         0,                  0                   ],
+                        [0,         math.cos(theta[0]), -math.sin(theta[0]) ],
+                        [0,         math.sin(theta[0]), math.cos(theta[0])  ]
+                        ])
+    
+        R_y = np.array([[math.cos(theta[1]),    0,      math.sin(theta[1])  ],
+                        [0,                     1,      0                   ],
+                        [-math.sin(theta[1]),   0,      math.cos(theta[1])  ]
+                        ])
+    
+        R_z = np.array([[math.cos(theta[2]),    -math.sin(theta[2]),    0],
+                        [math.sin(theta[2]),    math.cos(theta[2]),     0],
+                        [0,                     0,                      1]
+                        ])
+    
+        R = np.dot(R_z, np.dot( R_y, R_x ))
+    
+        return R
 
     # def visualize_drone_forces_realtime(self):
     #     """
