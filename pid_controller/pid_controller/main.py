@@ -1,12 +1,32 @@
 import rclpy
 import numpy as np
-import threading
 from rclpy.node import Node
 from sensor_msgs.msg import Imu
-from std_msgs.msg import Float64
+from std_msgs.msg import Float64, Float64MultiArray
 from geometry_msgs.msg import PoseArray
 from drone_msgs.msg import MotorCommand, SensorMessage, DistanceSensorArray
 import math
+
+def eulerAnglesToRotationMatrix(theta):
+    
+        R_x = np.array([[1,         0,                  0                   ],
+                        [0,         math.cos(theta[0]), -math.sin(theta[0]) ],
+                        [0,         math.sin(theta[0]), math.cos(theta[0])  ]
+                        ])
+    
+        R_y = np.array([[math.cos(theta[1]),    0,      math.sin(theta[1])  ],
+                        [0,                     1,      0                   ],
+                        [-math.sin(theta[1]),   0,      math.cos(theta[1])  ]
+                        ])
+    
+        R_z = np.array([[math.cos(theta[2]),    -math.sin(theta[2]),    0],
+                        [math.sin(theta[2]),    math.cos(theta[2]),     0],
+                        [0,                     0,                      1]
+                        ])
+    
+        R = np.dot(R_z, np.dot( R_y, R_x ))
+    
+        return R
 
 class PIDController(Node):
     def __init__(self):
@@ -29,6 +49,14 @@ class PIDController(Node):
             self.path_callback,
             1
         )
+        self.gain_subscriber = self.create_subscription(
+            Float64MultiArray,
+            '/pid_gains',
+            self.pid_gains_callback,
+            1
+        )
+
+
         self.initialized = False
         self.init_roll = 0.0
         self.init_pitch = 0.0
@@ -66,6 +94,7 @@ class PIDController(Node):
              [1, 1, 1, -1],
              [1, -1, -1, -1]])
         self.controller_message_array = np.array([0, 0, 0, 0])
+
     def sensor_callback(self, msg: SensorMessage):
         if not self.initialized:
             self.init_roll = msg.roll
@@ -126,15 +155,33 @@ class PIDController(Node):
         goal_vector = coordinate_transform@msg_vector
         self.goal_z = goal_vector[2]
         self.goal_y = goal_vector[1]
-    def update_kp_live(self):
-        while True:
-            try:
-                new_kp = int(input("Enter new kp value: "))
-                self.roll_kp = new_kp
-                self.pitch_kp = new_kp
-                self.get_logger().info(f"Updated kp to {self.roll_kp}")
-            except ValueError:
-                self.get_logger().error("Invalid input. Please enter a numeric value.")
+
+    def pid_gains_callback(self, msg: Float64MultiArray):  # ex. command: ros2 topic pub /pid_gains std_msgs/Float64MultiArray "data: [150.0, 10.0, 140.0, 5.0, 120.0, 2.0, 50.0, 1.0]"
+        """
+        Callback to update PID parameters dynamically.
+        The message should contain values in the following order:
+        [roll_kp, roll_kd, pitch_kp, pitch_kd, yaw_kp, yaw_kd, z_kp, z_kd]
+        """
+        if len(msg.data) != 8:
+            self.get_logger().error("Invalid parameter array size. Expected 8 values.")
+            return
+
+        self.roll_kp = msg.data[0]
+        self.roll_kd = msg.data[1]
+        self.pitch_kp = msg.data[2]
+        self.pitch_kd = msg.data[3]
+        self.yaw_kp = msg.data[4]
+        self.yaw_kd = msg.data[5]
+        self.z_kp = msg.data[6]
+        self.z_kd = msg.data[7]
+
+        self.get_logger().info(
+            f"Updated PID params: roll_kp={self.roll_kp}, roll_kd={self.roll_kd}, "
+            f"pitch_kp={self.pitch_kp}, pitch_kd={self.pitch_kd}, "
+            f"yaw_kp={self.yaw_kp}, yaw_kd={self.yaw_kd}, "
+            f"z_kp={self.z_kp}, z_kd={self.z_kd}"
+        )
+   
 def main(args=None):
     rclpy.init(args=args)
     controller = PIDController()
