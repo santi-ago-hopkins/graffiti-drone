@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import rclpy #uncomment me before flashing
 from rclpy.node import Node # uncomment  me
 from geometry_msgs.msg import PoseArray, Point, Pose
+from std_msgs.msg import Int32
 import math 
 
 class Planning(Node):
@@ -12,18 +13,34 @@ class Planning(Node):
         super().__init__('planner_node')
 
         # publish to /planner topic
-        self.control_publisher = self.create_publisher(
-            PoseArray,
+        self.planner_publisher = self.create_publisher(
+            Pose,
             '/path',
             1)
+        
+        #subscribe to /visit topic
+        self.control_subscriber = self.create_subscriber(
+            Int32, 
+            '/visit',
+            self.feed_callback,
+            1
+        )
 
-        self.speed = 1.0 
-        self.speed_multiplier = 0.8
+        # self.speed_multiplier = 0.8
         self.path = None
         self.waypoints = waypoints
-        
         self.resolution = 0.25 # one point every 25 cm (0.25 m)
+        self.current_pose_ind = 0
+        self.next_pose_ind = 1
 
+        
+    #create callback that gives next point when received 
+    def feed_callback(self, msg: Int32):
+        #get message and set that to current pose, message is current pose index
+        self.next_pose_ind = msg + 1
+        self.planner_publisher.publish(self.path[self.next_pose_ind])
+        
+    
     #simple nearest neighbors algorithm
     def nearestNeighborPath(self):
         def distance(point1, point2):
@@ -50,7 +67,7 @@ class Planning(Node):
         return self.path
 
     
-    # may make sense to implement something like this later that allows us to slow the speed near the point
+    #may make sense to implement something like this later that allows us to slow the speed near the point
     def set_velocities(self):
         '''using self.multipler (determines how slow we go near the point), we want to return a list with velocities as a function of position
         allows us to slow the drone down closer to the POI'''
@@ -80,6 +97,8 @@ class Planning(Node):
                     for j in range(1, num_points_to_add + 1):
                         interpolated_point = current_point + j * step
                         new_path.append(interpolated_point)
+
+
 
         new_path.append(self.path[-1])
         self.path = new_path
