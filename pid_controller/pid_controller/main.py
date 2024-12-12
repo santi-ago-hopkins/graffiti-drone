@@ -136,10 +136,10 @@ class PIDController(Node):
         motor_input = self.mixer_matrix @ input_vector
         print(motor_input)
         control_message = MotorCommand()
-        control_message.motor1 = min(int(motor_input[2]), 1600)
-        control_message.motor2 = min(int(motor_input[3]), 1600)
-        control_message.motor3 = min(int(motor_input[0]), 1600)
-        control_message.motor4 = min(int(motor_input[1]), 1600)
+        control_message.motor1 = min(int(motor_input[2]), self.max_esc_value)
+        control_message.motor2 = min(int(motor_input[3]), self.max_esc_value)
+        control_message.motor3 = min(int(motor_input[0]), self.max_esc_value)
+        control_message.motor4 = min(int(motor_input[1]), self.max_esc_value)
         self.control_publisher.publish(control_message)
     def path_callback(self, msg: PoseArray):
         pass  # Placeholder for path callback logic
