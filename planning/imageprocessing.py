@@ -74,6 +74,7 @@ def main():
     img = Image('images/square.jpg')
     img.getWaypoints()
     img.pixels_to_xy()
+    print(img.waypoints)
     plot = img.plot()
     pass
     

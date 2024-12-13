@@ -34,14 +34,14 @@ class Planning(Node):
         self.next_pose_ind = 1
 
         
-    #create callback that gives next point when received 
+    # create callback that gives next point when received 
     def feed_callback(self, msg: Int32):
-        #get message and set that to current pose, message is current pose index
+        # get message and set that to current pose, message is current pose index
         self.next_pose_ind = msg + 1
         self.planner_publisher.publish(self.path[self.next_pose_ind])
         
     
-    #simple nearest neighbors algorithm
+    # simple nearest neighbors algorithm
     def nearestNeighborPath(self):
         def distance(point1, point2):
             return np.linalg.norm(np.array(point1) - np.array(point2))
