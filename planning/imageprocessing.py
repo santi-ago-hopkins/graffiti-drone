@@ -3,16 +3,17 @@ import cv2 as cv
 from matplotlib import pyplot as plt
 
 class Image:
-    def __init__(self, path_to_image):
+    def __init__(self, path_to_image, straight_line_preference=False):
         # Read the image and detect edges
         self.image = cv.imread(path_to_image)
         self.image_height = self.image.shape[0]
         self.image_width = self.image.shape[1]
         self.gray = cv.cvtColor(self.image, cv.COLOR_BGR2GRAY)
         self.waypoints = []
-        self.canvas_height = 10.0 # in meters
-        self.canvas_width = 10.0 # also in meters 
+        self.canvas_height = 5.0 # in meters
+        self.canvas_width = 5.0 # also in meters 
         self.spray_can_radius = 0.05 # in meters
+        self.straight_line_preference = straight_line_preference
 
     def get_waypoints(self):
         # Apply Gaussian blur to reduce noise
@@ -91,7 +92,7 @@ class Image:
         plt.show()
 
     def nearest_neighbor_path(self):
-        '''returns the optimized path between the waypoints'''
+        '''returns the optimized path between the waypoints with preference for straight lines'''
         
         waypoints = np.array(self.waypoints)
         
@@ -103,10 +104,33 @@ class Image:
         unvisited = np.array(list(range(1, n))) # Start from first waypoint
         route = np.array([0])
         current = 0
+        prev_direction = None
         
         while len(unvisited) > 0:
             distances = dist_matrix[current, unvisited]
-            min_idx = np.argmin(distances)
+            
+            # Apply direction preference if we have a previous direction
+            if self.straight_line_preference and len(route) >= 2:
+                prev_point = waypoints[route[-2]]
+                curr_point = waypoints[current]
+                prev_direction = curr_point - prev_point
+                prev_direction = prev_direction / np.linalg.norm(prev_direction)
+                
+                # Calculate directions to potential next points
+                potential_directions = waypoints[unvisited] - curr_point
+                norms = np.linalg.norm(potential_directions, axis=1)
+                potential_directions = potential_directions / norms[:, np.newaxis]
+                
+                # Calculate alignment with previous direction (dot product)
+                alignments = np.abs(np.dot(potential_directions, prev_direction))
+                
+                # Combine distance and alignment scores
+                # Lower distance and higher alignment is better
+                scores = distances * (2 - alignments)  # Alignment factor ranges from 1-2
+                min_idx = np.argmin(scores)
+            else:
+                min_idx = np.argmin(distances)
+                
             next_point = unvisited[min_idx]
             route = np.append(route, next_point)
             unvisited = np.delete(unvisited, min_idx)
@@ -114,9 +138,9 @@ class Image:
             
         self.optimized_path = waypoints[route]
         print('Optimized path: ', self.optimized_path)
+        print('Path distance: ', self.get_path_distance())
         self.plot_path()
-        return self.optimized_path
-    
+        return self.optimized_path    
     
     
     def plot_path(self):
@@ -135,6 +159,19 @@ class Image:
         plt.legend()
         plt.axis('off')
         plt.show()
+
+    def get_path_distance(self):
+        total_distance = 0
+        # Convert optimized path points from pixels to global xy coordinates
+        pixel2xy = self.canvas_width / (self.image_width * 500)
+        optimized_path_xy = self.optimized_path * pixel2xy
+        for i in range(len(optimized_path_xy)-1):
+            point1 = optimized_path_xy[i]
+            point2 = optimized_path_xy[i+1]
+            distance = np.linalg.norm(point2 - point1)
+            total_distance += distance
+        print(f'Total path distance: {total_distance:.2f} ')
+        return total_distance
 
     def pixels_to_xy(self):
         pixel2xy = self.canvas_width / self.image_width
@@ -179,7 +216,7 @@ def main():
     # print(img.waypoints)
     # plot = img.plot()
 
-    img = Image('images/square.jpg')
+    img = Image('images/triangle.png', straight_line_preference=True)
     img.grid_planning()
     img.nearest_neighbor_path()
     
