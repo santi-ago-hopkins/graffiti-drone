@@ -216,7 +216,7 @@ def main():
     # print(img.waypoints)
     # plot = img.plot()
 
-    img = Image('images/triangle.png', straight_line_preference=True)
+    img = Image('images/triangle.png', straight_line_preference=False)
     img.grid_planning()
     img.nearest_neighbor_path()
     

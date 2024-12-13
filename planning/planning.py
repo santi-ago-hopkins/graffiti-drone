@@ -5,10 +5,11 @@ import rclpy #uncomment me before flashing
 from rclpy.node import Node # uncomment  me
 from geometry_msgs.msg import PoseArray, Point, Pose
 from std_msgs.msg import Int32
+from imageprocessing import Image
 import math 
 
 class Planning(Node):
-    def __init__(self, waypoints):
+    def __init__(self, path_to_image):
         #node stuff
         super().__init__('planner_node')
 
@@ -28,10 +29,14 @@ class Planning(Node):
 
         # self.speed_multiplier = 0.8
         self.path = None
-        self.waypoints = waypoints
+        # self.waypoints = waypoints
         self.resolution = 0.25 # one point every 25 cm (0.25 m)
         self.current_pose_ind = 0
         self.next_pose_ind = 1
+        self.image = Image(path_to_image)
+        self.image.grid_planning()
+        self.waypoints = self.image.nearest_neighbor_path()
+        
 
         
     # create callback that gives next point when received 
@@ -105,7 +110,7 @@ class Planning(Node):
 
         return self.path
 
-    #convert np array to poses to publish
+    # convert np array to poses to publish
     def numpyToPoseArrayPublish(self):
         poses = PoseArray()
         poses.header.frame_id = "global_path" 
@@ -116,7 +121,7 @@ class Planning(Node):
             pose.position = Point(x=float(point[0]), y=float(point[1]), z=0)
             poses.poses.append(pose)
 
-        #publish to planner topic
+        # publish to planner topic
         self.control_publisher.publish(poses)        
 
     def plot(self): 
@@ -139,16 +144,25 @@ class Planning(Node):
         plt.axis('equal')
         plt.show()
 
-if __name__ == "__main__":
-    #take image stuff
-    img = Image('images/square.jpg')
-    waypoints = img.getWaypoints()
-    waypoints = img.pixels_to_xy()
-    
-    #planning stuff
-    nn_planner = Planning(waypoints)
-    nn_planner.nearestNeighborPath()
-    nn_planner.plot() # plot me! 
+def main(args=None):
+    rclpy.init(args=args)
+    planner_node = Planning('images/person.jpg')
+    rclpy.spin(planner_node)
+    rclpy.shutdown()
 
-    # publish 
-    nn_planner.numpyToPoseArrayPublish()
+if __name__ == '__main__':
+    main()
+    
+# if __name__ == "__main__":
+#     #take image stuff
+#     img = Image('images/square.jpg')
+#     waypoints = img.getWaypoints()
+#     waypoints = img.pixels_to_xy()
+    
+#     #planning stuff
+#     nn_planner = Planning(waypoints)
+#     nn_planner.nearestNeighborPath()
+#     nn_planner.plot() # plot me! 
+
+#     # publish 
+#     nn_planner.numpyToPoseArrayPublish()
