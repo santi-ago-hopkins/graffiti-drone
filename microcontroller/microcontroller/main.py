@@ -42,7 +42,7 @@ class Arduino(Node):
         motor3 = msg.motor3
         motor4 = msg.motor4
         # Write Motor Message that Arduino is expecting
-        motor_message = f"{str(msg.motor1) + "/" + str(msg.motor2) + "/" + str(msg.motor3) + "/" + str(msg.motor4) + "/"}" + '\n'
+        motor_message = str(msg.motor1) + "/" + str(msg.motor2) + "/" + str(msg.motor3) + "/" + str(msg.motor4) + "/" + '\n'
         #self.ser.write(str(motor_str).encode('utf-8'))
         #self.ser.write(motor_str.encode())
         self.ser.write(bytearray(motor_message, 'ascii'))
