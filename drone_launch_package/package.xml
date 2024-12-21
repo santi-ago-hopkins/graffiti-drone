@@ -1,0 +1,24 @@
+<package format="3">
+  <name>drone_launch_package</name>
+  <version>0.0.1</version>
+  <description>Launch package for drone project</description>
+
+  <maintainer email="danielmunicio360@gmail.com">daniel</maintainer>
+  <license>Apache-2.0</license>
+
+  <!-- Build tool dependencies -->
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <!-- Dependencies for launch files -->
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+
+  <!-- Dependencies for the other packages -->
+  <exec_depend>pid_controller</exec_depend>
+  <exec_depend>planner</exec_depend>
+  <exec_depend>microcontroller</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

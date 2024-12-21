@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-package_name = 'planner'
+package_name = 'pid_controller'
 
 setup(
     name=package_name,
