@@ -111,12 +111,12 @@ class PIDController(Node):
         # [1,  1, -1,  1  ]
         # [1,  1,  1, -1  ]
         # [1, -1, -1, -1  ]
+
         self.mixer_matrix = np.vstack(
             [[1, 1, 1, 1],
              [-1, 1, 1, -1],
              [1, -1, 1, -1], 
              [1, 1, -1, -1]])
-
 
         #self.visualize_drone_forces_realtime()
         self.controller_message_array = np.array([0, 0, 0, 0])
@@ -194,9 +194,9 @@ class PIDController(Node):
         pitch_error = self.goal_pitch - msg.pitch
 
         # Calculate Inputs
-        roll_input = self.roll_kp * roll_error + self.roll_kd * msg.roll_rate
-        yaw_input = self.yaw_kp * yaw_error + self.yaw_kd * msg.yaw_rate
-        pitch_input = self.pitch_kp * pitch_error + self.pitch_kd * msg.pitch_rate
+        roll_input = self.roll_kp * roll_error + self.roll_kd * msg.roll_rate + self.roll_ki * self.roll_error_sum
+        yaw_input = self.yaw_kp * yaw_error + self.yaw_kd * msg.yaw_rate + self.yaw_ki * self.yaw_error_sum
+        pitch_input = self.pitch_kp * pitch_error + self.pitch_kd * msg.pitch_rate + self.pitch_ki * self.pitch_error_sum
 
         # Create Vector with Inputs 
         input_vector = np.array([self.hover_throttle + thrust, roll_input, pitch_input, yaw_input]).T
