@@ -38,6 +38,6 @@ Z_KI = 0.0
 HOVER_THROTTLE = 100
 
 # Assume x, y K values to be 0 for now 
-KP_VECTOR = np.array([0.0, 0.0, Z_KP, ROLL_KP, 0.0, 40.0])
+KP_VECTOR = np.array([0.0, 0.0, Z_KP, ROLL_KP, 0.0, YAW_KP])
 KD_VECTOR = np.array([0.0, 0.0, Z_KD, ROLL_KD, 0.0, YAW_KD])
 KI_VECTOR = np.array([0.0, 0.0, Z_KI, ROLL_KI, PITCH_KI, YAW_KI])
